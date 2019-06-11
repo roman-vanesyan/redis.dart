@@ -10,49 +10,38 @@ const int _cr = 0x0d;
 const int _lf = 0x0a;
 
 class _State {
-  _State() : _state = 0;
-
-  int _state;
-
-  bool contains(int state) => _state & state > 0;
-
-  void set(int state) => _state |= state;
-
-  void unset(int state) {
-    if (contains(state)) _state ^= state;
-  }
-
   static const int scanSimpleString = 1;
   static const int scanError = 2 << 1;
   static const int scanInteger = 2 << 2;
   static const int scanBulkString = 2 << 3;
   static const int scanArray = 2 << 4;
-  static const int scanBulkStringLength = 2 << 5;
-  static const int scanArrayLength = 2 << 6;
+  static const int scanLength = 2 << 5;
 }
 
 class Scanner {
   Scanner()
-      : _state = _State(),
+      : _state = 0,
         _crlf = 0,
         _accumulator = BytesBuilder(copy: false);
 
-  _State _state;
+  int _state;
 
   Scanner _arrayScanner;
   List<Reply> _replies;
   Reply _reply;
   int _crlf;
-  int _bulkStringLength;
-  int _arrayLength;
+  int _length;
 
   BytesBuilder _accumulator;
 
-  bool get idling => !_state.contains(_State.scanBulkString |
-      _State.scanArray |
-      _State.scanInteger |
-      _State.scanSimpleString |
-      _State.scanError);
+  bool get idling =>
+      _state &
+          (_State.scanBulkString |
+              _State.scanArray |
+              _State.scanInteger |
+              _State.scanSimpleString |
+              _State.scanError) ==
+      0;
 
   Reply get reply => _reply;
 
@@ -93,19 +82,10 @@ class Scanner {
     if (done) {
       final len = _getInt();
 
-      if (_state.contains(_State.scanArrayLength)) {
-        _arrayLength = len;
-
-        // Reset state
-        _state.unset(_State.scanArrayLength);
-      } else if (_state.contains(_State.scanBulkStringLength)) {
-        _bulkStringLength = len;
-
-        // Reset state
-        _state.unset(_State.scanBulkStringLength);
-      }
+      _length = len;
 
       // Reset state
+      _state ^= _State.scanLength;
       _accumulator.clear();
     }
 
@@ -119,7 +99,7 @@ class Scanner {
       _reply = IntegerReply(_getInt());
 
       // Reset states
-      _state.unset(_State.scanInteger);
+      _state ^= _State.scanInteger;
     }
 
     return done;
@@ -132,7 +112,7 @@ class Scanner {
       _reply = SimpleStringReply(_getString());
 
       // Reset states
-      _state.unset(_State.scanSimpleString);
+      _state ^= _State.scanSimpleString;
       _accumulator.clear();
     }
 
@@ -146,7 +126,7 @@ class Scanner {
       _reply = ErrorReply(_getString());
 
       // Reset states
-      _state.unset(_State.scanError);
+      _state ^= _State.scanError;
       _accumulator.clear();
     }
 
@@ -154,25 +134,25 @@ class Scanner {
   }
 
   bool _scanBulkString(ByteBuffer buffer) {
-    if (_bulkStringLength == null) {
+    if (_length == null) {
       if (!_scanLength(buffer)) {
         return false;
       }
     }
 
-    if (_bulkStringLength == -1) {
+    if (_length == -1) {
       _reply = NilReply();
 
       // Reset states
-      _state.unset(_State.scanBulkString);
-      _bulkStringLength = null;
+      _state ^= _State.scanBulkString;
+      _length = null;
       _accumulator.clear();
 
       return true;
     }
 
     while (buffer.available() > 0) {
-      if (_bulkStringLength == 0) {
+      if (_length == 0) {
         final byte = buffer.takeOne();
 
         if (byte == _cr) {
@@ -186,25 +166,25 @@ class Scanner {
           _reply = BulkStringReply(_getString());
 
           // Reset state
-          _state.unset(_State.scanBulkString);
+          _state ^= _State.scanBulkString;
           _crlf = 0;
-          _bulkStringLength = null;
+          _length = null;
           _accumulator.clear();
 
           return true;
         }
       }
 
-      final size = min(_bulkStringLength, buffer.available());
+      final size = min(_length, buffer.available());
       _accumulator.add(buffer.take(size));
-      _bulkStringLength -= size;
+      _length -= size;
     }
 
     return false;
   }
 
   bool _scanArray(ByteBuffer buffer) {
-    if (_arrayLength == null) {
+    if (_length == null) {
       if (!_scanLength(buffer)) {
         return false;
       }
@@ -212,12 +192,12 @@ class Scanner {
       _replies = [];
     }
 
-    if (_arrayLength == -1) {
+    if (_length == -1) {
       _reply = NilReply();
 
       // Reset state
-      _state.unset(_State.scanArray);
-      _arrayLength = null;
+      _state ^= _State.scanArray;
+      _length = null;
       _replies = null;
 
       return true;
@@ -225,7 +205,7 @@ class Scanner {
 
     _arrayScanner ??= Scanner();
 
-    while (_arrayLength > 0) {
+    while (_length > 0) {
       if (buffer.available() == 0) {
         return false;
       }
@@ -239,30 +219,30 @@ class Scanner {
       }
 
       _replies.add(_arrayScanner.reply);
-      _arrayLength--;
+      _length--;
     }
 
     _reply = ArrayReply(_replies);
 
     // Reset state
-    _state.unset(_State.scanArray);
+    _state ^= _State.scanArray;
     _replies = null;
     _arrayScanner = null;
-    _arrayLength = null;
+    _length = null;
 
     return true;
   }
 
   bool scan(ByteBuffer buffer) {
-    if (_state.contains(_State.scanSimpleString)) {
+    if (_state & _State.scanSimpleString > 0) {
       return _scanSimpleString(buffer);
-    } else if (_state.contains(_State.scanError)) {
+    } else if (_state & _State.scanError > 0) {
       return _scanError(buffer);
-    } else if (_state.contains(_State.scanInteger)) {
+    } else if (_state & _State.scanInteger > 0) {
       return _scanInteger(buffer);
-    } else if (_state.contains(_State.scanBulkString)) {
+    } else if (_state & _State.scanBulkString > 0) {
       return _scanBulkString(buffer);
-    } else if (_state.contains(_State.scanArray)) {
+    } else if (_state & _State.scanArray > 0) {
       return _scanArray(buffer);
     }
 
@@ -272,23 +252,23 @@ class Scanner {
   void feed(int tok) {
     switch (tok) {
       case TokenType.array:
-        _state.set(_State.scanArray | _State.scanArrayLength);
+        _state |= _State.scanArray | _State.scanLength;
         break;
 
       case TokenType.error:
-        _state.set(_State.scanError);
+        _state |= _State.scanError;
         break;
 
       case TokenType.simpleString:
-        _state.set(_State.scanSimpleString);
+        _state |= _State.scanSimpleString;
         break;
 
       case TokenType.bulkString:
-        _state.set(_State.scanBulkString | _State.scanBulkStringLength);
+        _state |= _State.scanBulkString | _State.scanLength;
         break;
 
       case TokenType.integer:
-        _state.set(_State.scanInteger);
+        _state |= _State.scanInteger;
         break;
     }
   }
