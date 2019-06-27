@@ -100,6 +100,7 @@ class Scanner {
 
       // Reset states
       _state ^= _State.scanInteger;
+      _accumulator.clear();
     }
 
     return done;
@@ -176,6 +177,7 @@ class Scanner {
       }
 
       final size = min(_length, buffer.available());
+
       _accumulator.add(buffer.take(size));
       _length -= size;
     }
@@ -246,7 +248,8 @@ class Scanner {
       return _scanArray(buffer);
     }
 
-    throw ProtocolException('Uknown reply type!');
+    throw StateError('Uninitialized parser state, use `Scanner#feed`'
+        'before calling to `Scanner#scan`!');
   }
 
   void feed(int tok) {
@@ -270,6 +273,9 @@ class Scanner {
       case TokenType.integer:
         _state |= _State.scanInteger;
         break;
+
+      default:
+        throw ProtocolException('Uknown reply type!');
     }
   }
 }
