@@ -15,7 +15,7 @@ task:
         image: google/dart
 
       env:
-        CODECOV_TOKEN: ''
+        CODECOV_TOKEN: ENCRYPTED[03aebbcc4ba875b1daa03cd414575fdf12fdb12178b16797f9f92760753145825cba4bd2f1b3f399141812956afe7d24]
 
       test_script: pub run test
       coverage_script: bash tool/coverage.sh
