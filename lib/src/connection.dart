@@ -11,7 +11,6 @@ import 'package:redis/src/context_provider.dart';
 import 'package:redis/src/executor.dart';
 import 'package:redis/src/utils.dart';
 import 'package:redis/src/raw_connection.dart';
-import 'package:redis/src/strings_context.dart';
 
 class _Command {
   static const String auth = r'AUTH';

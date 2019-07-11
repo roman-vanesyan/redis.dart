@@ -4,8 +4,7 @@ import 'dart:io'
 import 'package:redis/resp.dart'
     show RespDecoder, RespEncoder, Reply, ArrayReply;
 
-import 'package:redis/src/exceptions.dart'
-    show ConnectionException, ClosedConnectionException;
+import 'package:redis/src/exceptions.dart' show ConnectionException;
 
 class RawConnection {
   RawConnection._(this._socket)
@@ -20,7 +19,8 @@ class RawConnection {
 
   void send(ArrayReply reply) => _socket.add(encoder.convert(reply));
 
-  static Future<RawConnection> connect(dynamic host, int port,
+  static Future<RawConnection> connect(
+      dynamic /* InternetAddress | String */ host, int port,
       {bool isTlsEnabled, SecurityContext context}) async {
     // ignore: close_sinks
     Socket socket;

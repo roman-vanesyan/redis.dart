@@ -221,6 +221,9 @@ class Pool extends Executor with ContextProvider {
   Future<void> _release(PooledConnection cnx) async {
     try {
       await cnx.ping();
+
+      _totalIdlingConns++;
+      _idlingConns.add(cnx);
     } on ClosedConnectionException {
       _remove(cnx);
     }
@@ -229,6 +232,7 @@ class Pool extends Executor with ContextProvider {
       final pendingCnx = _pendingConns.removeFirst();
       final cnx = await acquire();
 
+      _totalPendingConns--;
       pendingCnx.complete(cnx);
     }
   }
