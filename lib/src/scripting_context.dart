@@ -26,25 +26,31 @@ class ScriptDebugMode {
 }
 
 /// See: http://redis.io/commands#scripting
-mixin ScriptingCommandsMixin on Executor {
+class ScriptingContext {
+  ScriptingContext(this._executor);
+
+  final Executor _executor;
+
   /// Evaluates Lua [script] on the server-side.
   ///
   /// See: https://redis.io/commands/eval
   Future<void> eval(
           String script, Iterable<String> keys, Iterable<String> args) =>
-      exec(_Command.eval, [script, keys.length.toString(), ...keys, ...args]);
+      _executor.exec(
+          _Command.eval, [script, keys.length.toString(), ...keys, ...args]);
 
   /// Evaluates a script cached on the server-side by its [hash] SHA1 digest.
   ///
   /// See: https://redis.io/commands/evalsha
   Future evalsha(String hash, Iterable<String> keys, Iterable<String> args) =>
-      exec<int>(_Command.evalsha, [keys.length.toString(), ...keys, ...args]);
+      _executor.exec<int>(
+          _Command.evalsha, [keys.length.toString(), ...keys, ...args]);
 
   /// Set the debug mode for subsequent scripts executed with [eval].
   ///
   /// See: https://redis.io/commands/script-debug
-  Future<void> scriptDebug(ScriptDebugMode mode) async =>
-      isOk(await exec<String>(_Command.debug, [mode.value]));
+  Future<void> debug(ScriptDebugMode mode) async =>
+      isOk(await _executor.exec<String>(_Command.debug, [mode.value]));
 
   /// Returns information about the existence of the scripts in the script
   /// cache.
@@ -54,16 +60,17 @@ mixin ScriptingCommandsMixin on Executor {
   /// the script cache `true` is returned, otherwise `false` is returned.
   ///
   /// See: https://redis.io/commands/script-exists
-  Future<List<bool>> scriptExists(Iterable<String> hashes) async {
+  Future<List<bool>> exists(Iterable<String> hashes) async {
     assert(hashes != null && hashes.isNotEmpty);
 
-    final raw = await exec<List<int>>(_Command.exists, <String>[...hashes]);
+    final raw =
+        await _executor.exec<List<int>>(_Command.exists, <String>[...hashes]);
     final result = [for (final r in raw) r == 1];
 
     return result;
   }
 
-  Future<void> scriptFlush() => exec(_Command.flush);
+  Future<void> flush() => _executor.exec(_Command.flush);
 
-  Future<void> scriptLoad() => exec(_Command.load);
+  Future<void> load() => _executor.exec(_Command.load);
 }

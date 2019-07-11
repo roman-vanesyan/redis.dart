@@ -7,12 +7,16 @@ class _Command {
   static const String numPat = r'PUBSUB NUMPAT';
 }
 
-mixin PubSubCommandsMixin on Executor {
+class PubSubContext {
+  PubSubContext(this._executor);
+
+  final Executor _executor;
+
   /// Posts a [message] to the given [channel].
   ///
   /// See: https://redis.io/commands/publish
   Future<int> publish(String channel, String message) =>
-      exec(_Command.publish, [channel, message]);
+      _executor.exec(_Command.publish, [channel, message]);
 
   /// List the currently active channels. An active channel is Pub/Sub channel
   /// with one or more subscribers (not including clients subscribed to
@@ -23,8 +27,8 @@ mixin PubSubCommandsMixin on Executor {
   ///
   /// See: https://redis.io/commands/pubsub#pubsub-channels-pattern
   Future<Iterable<String>> channels([String pattern]) async {
-    final result = await exec<List<String>>(
-        _Command.channels, [if (pattern != null) pattern]);
+    final result = await _executor
+        .exec<List<String>>(_Command.channels, [if (pattern != null) pattern]);
 
     return result;
   }
@@ -34,10 +38,10 @@ mixin PubSubCommandsMixin on Executor {
   ///
   /// See: https://redis.io/commands/pubsub#codepubsub-numsub-channel-1--channel-ncode
   Future<int> numsub([Iterable<String> channels]) =>
-      exec(_Command.numSub, [if (channels != null) ...channels]);
+      _executor.exec(_Command.numSub, [if (channels != null) ...channels]);
 
   /// Returns the number of subscriptions to any patterns.
   ///
   /// See: https://redis.io/commands/pubsub#codepubsub-numpatcode
-  Future<int> numpat() => exec(_Command.numPat);
+  Future<int> numpat() => _executor.exec(_Command.numPat);
 }

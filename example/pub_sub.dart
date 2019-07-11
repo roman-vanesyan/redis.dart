@@ -19,8 +19,8 @@ Future<void> main() async {
   });
 
   subscriber.subscribe(['greeting']);
-  await client.publish('greeting', 'Hello');
-  await client.publish('greeting', 'world!');
+  await client.pubSub.publish('greeting', 'Hello');
+  await client.pubSub.publish('greeting', 'world!');
 
   await client.close();
   await subscriber.close();

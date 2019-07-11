@@ -5,8 +5,8 @@ import 'package:redis/redis.dart' show Pool;
 Future<void> main() async {
   final client = await Pool.connect(InternetAddress.loopbackIPv4);
 
-  await client.set('greeting', 'Hello world!');
-  final value = await client.get('greeting');
+  await client.strings.set('greeting', 'Hello world!');
+  final value = await client.strings.get('greeting');
 
   print(value); // => 'Hello world'
 

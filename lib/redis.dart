@@ -8,6 +8,7 @@ library redis;
 
 export 'src/connection.dart' show Connection, ConnectionConfig;
 export 'src/pool.dart' show Pool, PooledConnection, PoolConfig, PoolStats;
-export 'src/pubsub_commands_mixin.dart' show PubSubCommandsMixin;
-export 'src/string_commands_mixin.dart' show StringCommandsMixin;
-export 'src/subscriber.dart' show Subscriber, Event, MessageEvent, EventKind;
+export 'src/pubsub_context.dart' show PubSubContext;
+export 'src/strings_context.dart' show StringsContext;
+export 'src/subscriber.dart'
+    show Subscriber, SubscriberConfig, Event, MessageEvent, EventKind;

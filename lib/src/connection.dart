@@ -6,11 +6,12 @@ import 'dart:io' show SecurityContext;
 import 'package:meta/meta.dart' show immutable;
 import 'package:jetlog/jetlog.dart' as log;
 import 'package:redis/resp.dart' show ArrayReply, Reply, ReplyKind;
+import 'package:redis/src/context_provider.dart';
 
 import 'package:redis/src/executor.dart';
 import 'package:redis/src/utils.dart';
 import 'package:redis/src/raw_connection.dart';
-import 'package:redis/src/string_commands_mixin.dart';
+import 'package:redis/src/strings_context.dart';
 
 class _Command {
   static const String auth = r'AUTH';
@@ -43,7 +44,7 @@ class ConnectionConfig implements log.Loggable {
 }
 
 /// Connections is a single connection from the connection [Pool].
-class Connection extends Executor with StringCommandsMixin {
+class Connection extends Executor with ContextProvider {
   Connection._(this._cnx, this.config) : _tasks = Queue() {
     _subscription = _cnx.replies.listen(_onReply);
   }

@@ -9,10 +9,7 @@ import 'package:jetlog/jetlog.dart' as log;
 import 'package:redis/src/connection.dart';
 import 'package:redis/src/exceptions.dart';
 import 'package:redis/src/executor.dart';
-import 'package:redis/src/pubsub_commands_mixin.dart';
-import 'package:redis/src/scripting_commands_mixin.dart';
-import 'package:redis/src/server_commands_mixin.dart';
-import 'package:redis/src/string_commands_mixin.dart';
+import 'package:redis/src/context_provider.dart';
 
 final log.Logger logger = log.Logger.getLogger('redis.Pool');
 
@@ -90,8 +87,8 @@ class PoolStats implements log.Loggable {
 /// void main() async {
 ///   final pool = Pool(InternetAddress.loopbackIPv4);
 ///
-///   await pool.set('key', 'value');
-///   final value = await client.get('key');
+///   await pool.strings.set('key', 'value');
+///   final value = await client.strings.get('key');
 ///
 ///   print(value); // => 'value'
 ///
@@ -117,12 +114,7 @@ class PoolStats implements log.Loggable {
 /// # Single connection
 /// If only a single connection is needed for the whole application lifetime
 /// use [Connection] instead.
-class Pool extends Executor
-    with
-        PubSubCommandsMixin,
-        ServerCommandsMixin,
-        StringCommandsMixin,
-        ScriptingCommandsMixin {
+class Pool extends Executor with ContextProvider {
   Pool._(this.host, this.port, this.config)
       : _allConns = {},
         _idlingConns = Queue(),
@@ -339,8 +331,7 @@ class Pool extends Executor
 
 /// [PooledConnection] is a single connection managed by particular connection
 /// pool.
-class PooledConnection extends Executor
-    with StringCommandsMixin, PubSubCommandsMixin {
+class PooledConnection extends Executor with ContextProvider {
   PooledConnection._(this._pool, this._cnx, this._id);
 
   final Connection _cnx;
