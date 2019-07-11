@@ -61,6 +61,8 @@ class ArrayReply extends Reply<List<Reply<dynamic>>> {
 
   @override
   final ReplyKind kind;
+
+  int get length => value.length;
 }
 
 class NilReply extends Reply<Object> {
