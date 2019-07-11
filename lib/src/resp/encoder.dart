@@ -13,21 +13,18 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
 
   List<int> _encodeArray(ArrayReply reply) {
     if (reply.value.isEmpty) {
-      return [
-        0x2a /* * */,
-        0x30 /* 0 */,
-        ..._crlf,
-      ];
+      return [0x2a /* * */, 0x30 /* 0 */, _cr, _lf];
     }
 
     final len = reply.value.length;
+    final replies = reply.value;
     final buffer = BytesBuilder(copy: false)
       ..addByte(TokenType.array)
       ..add(utf8.encode(len.toString()))
       ..add(_crlf);
 
-    for (int i = 0; i < len; i++) {
-      buffer.add(convert(reply.value[i]));
+    for (final reply in replies) {
+      buffer.add(convert(reply));
     }
 
     return buffer.takeBytes();
@@ -52,11 +49,7 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
 
   List<int> _encodeBulkString(BulkStringReply reply) {
     if (reply.value.isEmpty) {
-      return [
-        TokenType.bulkString,
-        0x30 /* 0 */,
-        ..._crlf,
-      ];
+      return [TokenType.bulkString, 0x30 /* 0 */, _cr, _lf];
     }
 
     final len = reply.value.length;
@@ -85,12 +78,7 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
         return _encodeArray(input as ArrayReply);
 
       case ReplyKind.nil:
-        return [
-          TokenType.bulkString,
-          0x2d /* - */,
-          0x31 /* 1 */,
-          ..._crlf,
-        ];
+        return [TokenType.bulkString, 0x2d /* - */, 0x31 /* 1 */, _cr, _lf];
 
       case ReplyKind.simpleString:
         return _encodeSimpleString(input as SimpleStringReply);
