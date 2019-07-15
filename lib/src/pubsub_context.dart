@@ -1,12 +1,5 @@
 import 'package:redis/src/executor.dart';
 
-class _Command {
-  static const String publish = r'PUBLISH';
-  static const String channels = r'PUBSUB CHANNELS';
-  static const String numSub = r'PUBSUB NUMSUB';
-  static const String numPat = r'PUBSUB NUMPAT';
-}
-
 class PubSubContext {
   PubSubContext(this._executor);
 
@@ -16,7 +9,7 @@ class PubSubContext {
   ///
   /// See: https://redis.io/commands/publish
   Future<int> publish(String channel, String message) =>
-      _executor.exec(_Command.publish, [channel, message]);
+      _executor.exec([r'PUBLISH', channel, message]);
 
   /// List the currently active channels. An active channel is Pub/Sub channel
   /// with one or more subscribers (not including clients subscribed to
@@ -27,8 +20,8 @@ class PubSubContext {
   ///
   /// See: https://redis.io/commands/pubsub#pubsub-channels-pattern
   Future<Iterable<String>> channels([String pattern]) async {
-    final result = await _executor
-        .exec<List<String>>(_Command.channels, [if (pattern != null) pattern]);
+    final result = await _executor.exec<List<String>>(
+        [r'PUBSUB', r'CHANNELS', if (pattern != null) pattern]);
 
     return result;
   }
@@ -38,10 +31,10 @@ class PubSubContext {
   ///
   /// See: https://redis.io/commands/pubsub#codepubsub-numsub-channel-1--channel-ncode
   Future<int> numsub([Iterable<String> channels]) =>
-      _executor.exec(_Command.numSub, [if (channels != null) ...channels]);
+      _executor.exec([r'PUBSUB', r'NUMSUB', if (channels != null) ...channels]);
 
   /// Returns the number of subscriptions to any patterns.
   ///
   /// See: https://redis.io/commands/pubsub#codepubsub-numpatcode
-  Future<int> numpat() => _executor.exec(_Command.numPat);
+  Future<int> numpat() => _executor.exec([r'PUBSUB', r'NUMPAT']);
 }

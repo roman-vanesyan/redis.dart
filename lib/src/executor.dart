@@ -6,7 +6,7 @@ abstract class Executor {
   /// list.
   ///
   /// ```dart
-  /// await cnx.exec<String>(r'GET', ['key']);
+  /// await cnx.exec<String>([r'GET', 'key']);
   /// ```
-  Future<T> exec<T>(String command, [List<String> args]);
+  Future<T> exec<T>(List<String> args);
 }

@@ -244,11 +244,11 @@ class Pool extends Executor with ContextProvider {
   Future<void> get done => _completer.future;
 
   @override
-  Future<T> exec<T>(String command, [List<String> args]) async {
+  Future<T> exec<T>([List<String> args]) async {
     final cnx = await acquire();
 
     try {
-      final result = await cnx.exec<T>(command, args);
+      final result = await cnx.exec<T>(args);
 
       return result;
     } finally {
@@ -345,8 +345,7 @@ class PooledConnection extends Executor with ContextProvider {
   Future<void> _close(bool force) => _cnx.close(force: force);
 
   @override
-  Future<T> exec<T>(String command, [List<String> args]) =>
-      _cnx.exec(command, args);
+  Future<T> exec<T>([List<String> args]) => _cnx.exec(args);
 
   Future<String> ping([String message]) => _cnx.ping(message);
 

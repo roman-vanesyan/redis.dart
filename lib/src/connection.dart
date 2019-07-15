@@ -12,15 +12,6 @@ import 'package:redis/src/executor.dart';
 import 'package:redis/src/utils.dart';
 import 'package:redis/src/raw_connection.dart';
 
-class _Command {
-  static const String auth = r'AUTH';
-  static const String echo = r'ECHO';
-  static const String ping = r'PING';
-  static const String quit = r'QUIT';
-  static const String select = r'SELECT';
-  static const String swapdb = r'SWAPDB';
-}
-
 @immutable
 class ConnectionConfig implements log.Loggable {
   const ConnectionConfig(
@@ -91,30 +82,30 @@ class Connection extends Executor with ContextProvider {
     }
   }
 
-  Future<void> _quit() => exec(_Command.quit);
+  Future<void> _quit() => exec([r'QUIT']);
 
   Future<void> _auth(String password) {
     ArgumentError.checkNotNull(password);
 
-    return exec(_Command.auth, [password]);
+    return exec([r'AUTH', password]);
   }
 
   @override
-  Future<T> exec<T>(String command, [List<String> args]) {
+  Future<T> exec<T>(List<String> args) {
     final task = Completer<T>();
 
-    _cnx.send(convertToRespLine([command, if (args != null) ...args]));
+    _cnx.send(convertToRespLine(args));
     _tasks.add(task);
 
     return task.future;
   }
 
-  Future<String> echo(String message) => exec(_Command.echo, [message]);
+  Future<String> echo(String message) => exec([r'ECHO', message]);
 
   Future<String> ping([String message]) =>
-      exec(_Command.ping, [if (message != null) message]);
+      exec([r'PING', if (message != null) message]);
 
-  Future<void> select(int db) => exec(_Command.select, [db.toString()]);
+  Future<void> select(int db) => exec([r'SELECT', db.toString()]);
 
   /// Returns this connection back to the connection pool of the owner client.
   Future<void> close({bool force = false}) async {

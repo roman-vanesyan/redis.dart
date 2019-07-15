@@ -36,21 +36,21 @@ class ScriptingContext {
   /// See: https://redis.io/commands/eval
   Future<void> eval(
           String script, Iterable<String> keys, Iterable<String> args) =>
-      _executor.exec(
-          _Command.eval, [script, keys.length.toString(), ...keys, ...args]);
+      _executor
+          .exec([r'EVAL', script, keys.length.toString(), ...keys, ...args]);
 
   /// Evaluates a script cached on the server-side by its [hash] SHA1 digest.
   ///
   /// See: https://redis.io/commands/evalsha
   Future evalsha(String hash, Iterable<String> keys, Iterable<String> args) =>
-      _executor.exec<int>(
-          _Command.evalsha, [keys.length.toString(), ...keys, ...args]);
+      _executor
+          .exec<int>([r'EVALSHA', keys.length.toString(), ...keys, ...args]);
 
-  /// Set the debug mode for subsequent scripts executed with [eval].
+  /// Set the debug [mode] for subsequent scripts executed with [eval].
   ///
   /// See: https://redis.io/commands/script-debug
   Future<void> debug(ScriptDebugMode mode) async =>
-      isOk(await _executor.exec<String>(_Command.debug, [mode.value]));
+      isOk(await _executor.exec<String>([r'SCRIPT', r'DEBUG', mode.value]));
 
   /// Returns information about the existence of the scripts in the script
   /// cache.
@@ -64,13 +64,13 @@ class ScriptingContext {
     assert(hashes != null && hashes.isNotEmpty);
 
     final raw =
-        await _executor.exec<List<int>>(_Command.exists, <String>[...hashes]);
+        await _executor.exec<List<int>>([r'SCRIPT', r'EXISTS', ...hashes]);
     final result = [for (final r in raw) r == 1];
 
     return result;
   }
 
-  Future<void> flush() => _executor.exec(_Command.flush);
+  Future<void> flush() => _executor.exec([r'SCRIPT', r'FLUSH']);
 
-  Future<void> load() => _executor.exec(_Command.load);
+  Future<void> load() => _executor.exec([r'SCRIPT', r'LOAD']);
 }

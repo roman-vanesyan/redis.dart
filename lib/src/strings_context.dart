@@ -100,7 +100,7 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/append
   Future<int> append(String key, String value) =>
-      _executor.exec<int>(_Command.append, [key, value]);
+      _executor.exec<int>([r'APPEND', key, value]);
 
   /// Count the number of set bits (population counting) in a string.
   ///
@@ -110,8 +110,11 @@ class StringsContext {
   Future<int> bitcount(String key, [int start, int end]) {
     assert((start != null && end == null) || (start == null && end != null));
 
-    return _executor.exec(_Command.bitcount,
-        [if (start != null) start.toString(), if (end != null) end.toString()]);
+    return _executor.exec([
+      r'BITCOUNT',
+      if (start != null) start.toString(),
+      if (end != null) end.toString()
+    ]);
   }
 
   /// See https://redis.io/commands/bitfield
@@ -125,7 +128,7 @@ class StringsContext {
       if (op.overflow != null) args.add(op.overflow.toString());
     }
 
-    return _executor.exec(_Command.bitfield, [key, ...args]);
+    return _executor.exec([r'BITFIELD', key, ...args]);
   }
 
   /// Perform a bitwise operation between multiple [src] keys and store the
@@ -135,7 +138,8 @@ class StringsContext {
   Future<bool> bitop(BitOp op, String dest, Iterable<String> src) async {
     assert(src.isNotEmpty);
 
-    final res = await _executor.exec<String>(_Command.bitop, [
+    final res = await _executor.exec<String>([
+      r'BITOP',
       op.value,
       dest,
       ...src,
@@ -145,19 +149,19 @@ class StringsContext {
   }
 
   /// See https://redis.io/commands/bitops
-  Future<int> bitops(String key, int start, int end) =>
-      _executor.exec(_Command.bitops, [
+  Future<int> bitops(String key, int start, int end) => _executor.exec([
+        r'BITOPS',
         key,
         start.toString(),
         end.toString(),
       ]);
 
   /// See https://redis.io/commands/decr
-  Future<int> decr(String key) => _executor.exec(_Command.decr, [key]);
+  Future<int> decr(String key) => _executor.exec([r'DECR', key]);
 
   /// See https://redis.io/commands/decrby
   Future<int> decrby(String key, int value) =>
-      _executor.exec(_Command.decrby, [key, value.toString()]);
+      _executor.exec([r'DECRBY', key, value.toString()]);
 
   /// Gets the value of [key].
   ///
@@ -165,20 +169,20 @@ class StringsContext {
   /// `null` is returned.
   ///
   /// See https://redis.io/commands/get
-  Future<String> get(String key) => _executor.exec(_Command.get, [key]);
+  Future<String> get(String key) => _executor.exec([r'GET', key]);
 
   /// Returns the bit value at [offset] in the value stored at [key].
   ///
   /// See https://redis.io/commands/getbit
-  Future<int> getbit(String key, int offset) =>
-      _executor.exec(_Command.getbit, [
+  Future<int> getbit(String key, int offset) => _executor.exec([
+        r'GETBIT',
         key,
         offset.toString(),
       ]);
 
   /// See https://redis.io/commands/getrange
-  Future<String> getrange(String key, int start, int end) =>
-      _executor.exec(_Command.getrange, [
+  Future<String> getrange(String key, int start, int end) => _executor.exec([
+        r'GETRANGE',
         key,
         start.toString(),
         end.toString(),
@@ -188,10 +192,10 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/getset
   Future<String> getset(String key, String value) =>
-      _executor.exec(_Command.getset, [key, value]);
+      _executor.exec([r'GETSET', key, value]);
 
   /// See https://redis.io/commands/incr
-  Future<int> incr(String key) => _executor.exec(_Command.incr, [key]);
+  Future<int> incr(String key) => _executor.exec([r'INCR', key]);
 
   /// Increments the number stored at [key] by [value].
   ///
@@ -199,12 +203,12 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/incrby
   Future<int> incrby(String key, int value) =>
-      _executor.exec(_Command.incrby, [key, value.toString()]);
+      _executor.exec([r'INCRBY', key, value.toString()]);
 
   /// See https://redis.io/commands/incrbyfloat
   Future<double> incrbyfloat(String key, double value) async {
-    final result = await _executor
-        .exec<String>(_Command.incrbyfloat, [key, value.toString()]);
+    final result =
+        await _executor.exec<String>([r'INCRBYFLOAT', key, value.toString()]);
 
     return double.parse(result);
   }
@@ -216,7 +220,7 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/mget
   Future<List<String>> mget(List<String> keys) =>
-      _executor.exec(_Command.mget, [...keys]);
+      _executor.exec([r'MGET', ...keys]);
 
   /// Sets keys to their respective values; if any key is already presented
   /// the value is overridden with current one.
@@ -235,7 +239,7 @@ class StringsContext {
         ..[c++] = v;
     });
 
-    final result = await _executor.exec<String>(_Command.mset, args);
+    final result = await _executor.exec<String>([r'MSET', ...args]);
 
     return isOk(result);
   }
@@ -251,7 +255,7 @@ class StringsContext {
         ..[c++] = v;
     });
 
-    final result = await _executor.exec<String>(_Command.msetnx, args);
+    final result = await _executor.exec<String>([r'MSETNX', ...args]);
 
     return isOk(result);
   }
@@ -261,7 +265,8 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/psetex
   Future<bool> psetex(String key, String value, Duration expiresIn) async {
-    final res = await _executor.exec<String>(_Command.psetex, [
+    final res = await _executor.exec<String>([
+      r'PSETEX',
       key,
       expiresIn.inMilliseconds.toString(),
       value,
@@ -277,7 +282,8 @@ class StringsContext {
       bool replaceOnly = false}) async {
     assert(createOnly && replaceOnly);
 
-    final res = await _executor.exec<String>(_Command.set, [
+    final res = await _executor.exec<String>([
+      r'SET',
       key,
       value,
       if (expiresIn != null) ...['PX', expiresIn.inMilliseconds.toString()],
@@ -295,7 +301,8 @@ class StringsContext {
     assert(bit == 0 || bit == 1);
     assert(!offset.isNegative);
 
-    return _executor.exec(_Command.setbit, [
+    return _executor.exec([
+      r'SETBIT',
       key.toString(),
       offset.toString(),
       bit.toString(),
@@ -306,7 +313,8 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/setex
   Future<bool> setex(String key, String value, Duration expiresIn) async {
-    final res = await _executor.exec<String>(_Command.setex, [
+    final res = await _executor.exec<String>([
+      r'SETEX',
       key,
       value,
       expiresIn.inSeconds.toString(),
@@ -319,14 +327,15 @@ class StringsContext {
   ///
   /// See https://redis.io/commands/setnx
   Future<bool> setnx(String key, String value) async {
-    final result = await _executor.exec<int>(_Command.setnx, [key, value]);
+    final result = await _executor.exec<int>([r'SETNX', key, value]);
 
     return result == 1;
   }
 
   /// See https://redis.io/commands/setrange
   Future<String> setrange(String key, int offset, String value) =>
-      _executor.exec(_Command.setrange, [
+      _executor.exec([
+        r'SETRANGE',
         key,
         offset.toString(),
         value,
@@ -335,6 +344,5 @@ class StringsContext {
   /// Returns the length of the string value stored at the [key].
   ///
   /// See https://redis.io/commands/strlen
-  Future<int> strlen(String key) async =>
-      _executor.exec(_Command.strlen, [key]);
+  Future<int> strlen(String key) async => _executor.exec([r'STRLEN', key]);
 }
