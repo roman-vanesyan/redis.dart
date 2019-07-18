@@ -4,6 +4,7 @@ import 'dart:collection' show Queue;
 import 'package:redis/src/context_provider.dart';
 import 'package:redis/src/runner.dart';
 import 'package:redis/src/connection_impl.dart';
+import 'package:redis/src/utils.dart';
 
 abstract class TransactionExecutor {
   /// Marks the start of a transaction block.
@@ -34,6 +35,10 @@ class Transaction extends Runner with ContextProvider {
       await _onFinalize();
     }
   }
+
+  /// Releases all previously queued commands in this transaction and restores
+  /// the connection state to normal. Any previously watched keys are unwatched.
+  Future<bool> discard() async => isOk(await _cnx.execute([r'DISCARD']));
 
   @override
   Future<T> run<T>(List<String> args) async {
