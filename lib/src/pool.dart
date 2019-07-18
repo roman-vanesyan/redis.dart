@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io' show SecurityContext;
-import 'dart:io';
+import 'dart:io' show SecurityContext, InternetAddress;
 
 import 'package:meta/meta.dart' show immutable;
 import 'package:jetlog/jetlog.dart' as log;
 
 import 'package:redis/src/connection.dart';
+import 'package:redis/src/connection_impl.dart';
 import 'package:redis/src/exceptions.dart';
-import 'package:redis/src/executor.dart';
+import 'package:redis/src/runner.dart';
 import 'package:redis/src/context_provider.dart';
+import 'package:redis/src/transaction.dart';
 
 final log.Logger logger = log.Logger.getLogger('redis.Pool');
 
@@ -85,7 +86,7 @@ class PoolStats implements log.Loggable {
 ///
 /// ```dart
 /// void main() async {
-///   final pool = Pool(InternetAddress.loopbackIPv4);
+///   final pool = Pool.connect(InternetAddress.loopbackIPv4);
 ///
 ///   await pool.strings.set('key', 'value');
 ///   final value = await client.strings.get('key');
@@ -114,7 +115,7 @@ class PoolStats implements log.Loggable {
 /// # Single connection
 /// If only a single connection is needed for the whole application lifetime
 /// use [Connection] instead.
-class Pool extends Executor with ContextProvider {
+class Pool extends Runner with ContextProvider {
   Pool._(this.host, this.port, this.config)
       : _allConns = {},
         _idlingConns = Queue(),
@@ -200,7 +201,7 @@ class Pool extends Executor with ContextProvider {
           await raw.select(config.db);
         }
 
-        final cnx = PooledConnection._(this, raw, id);
+        final cnx = PooledConnection._(this, raw as ConnectionImpl, id);
         _allConns[id] = cnx;
 
         return cnx;
@@ -244,11 +245,11 @@ class Pool extends Executor with ContextProvider {
   Future<void> get done => _completer.future;
 
   @override
-  Future<T> exec<T>([List<String> args]) async {
+  Future<T> run<T>([List<String> args]) async {
     final cnx = await acquire();
 
     try {
-      final result = await cnx.exec<T>(args);
+      final result = await cnx.run<T>(args);
 
       return result;
     } finally {
@@ -331,24 +332,40 @@ class Pool extends Executor with ContextProvider {
 
     return done;
   }
+
+  Future<Transaction> multi() async {
+    final cnx = await acquire();
+
+    return cnx.multi();
+  }
 }
 
 /// [PooledConnection] is a single connection managed by particular connection
 /// pool.
-class PooledConnection extends Executor with ContextProvider {
+class PooledConnection extends Runner with ContextProvider {
   PooledConnection._(this._pool, this._cnx, this._id);
 
-  final Connection _cnx;
   final Pool _pool;
+  final ConnectionImpl _cnx;
   final int _id;
 
   Future<void> _close(bool force) => _cnx.close(force: force);
 
   @override
-  Future<T> exec<T>([List<String> args]) => _cnx.exec(args);
+  Future<T> run<T>([List<String> args]) => _cnx.run(args);
 
   Future<String> ping([String message]) => _cnx.ping(message);
 
   /// Returns this connection back to the owner connection pool.
   Future<void> release() => _pool._release(this);
+
+  Future<Transaction> multi() async {
+    await _cnx.execute<void>([r'MULTI']); // => 'OK'
+    _cnx.isTransacting = true;
+
+    return Transaction(_cnx, () async {
+      _cnx.isTransacting = false;
+      await release();
+    });
+  }
 }

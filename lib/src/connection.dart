@@ -1,15 +1,12 @@
-import 'dart:async' show Completer;
-import 'dart:async';
-import 'dart:collection' show Queue;
 import 'dart:io' show SecurityContext;
 
 import 'package:meta/meta.dart' show immutable;
 import 'package:jetlog/jetlog.dart' as log;
-import 'package:redis/resp.dart' show ArrayReply, Reply, ReplyKind;
-import 'package:redis/src/context_provider.dart';
 
-import 'package:redis/src/executor.dart';
-import 'package:redis/src/utils.dart';
+import 'package:redis/src/connection_impl.dart' show ConnectionImpl;
+import 'package:redis/src/context_provider.dart';
+import 'package:redis/src/runner.dart';
+import 'package:redis/src/transaction.dart';
 import 'package:redis/src/raw_connection.dart';
 
 @immutable
@@ -33,18 +30,13 @@ class ConnectionConfig implements log.Loggable {
       };
 }
 
-/// Connections is a single connection from the connection [Pool].
-class Connection extends Executor with ContextProvider {
-  Connection._(this._cnx, this.config) : _tasks = Queue() {
-    _subscription = _cnx.replies.listen(_onReply);
-  }
-
-  final RawConnection _cnx;
-  final Queue<Completer> _tasks;
-  StreamSubscription<Reply> _subscription;
-
-  /// This connection configurations.
-  final ConnectionConfig config;
+/// Connections is a single connection rather than a pool of connections.
+abstract class Connection implements Runner, ContextProvider {
+  /// Whether the connection is transaction mode.
+  ///
+  /// Connection is considered to be in transaction mode once [multi] is
+  /// executed till corresponding [Transaction.exec] method call.
+  bool get isTransacting;
 
   static Future<Connection> connect(dynamic host,
       {int port = 6379, ConnectionConfig config}) async {
@@ -55,61 +47,18 @@ class Connection extends Executor with ContextProvider {
       context: config.securityContext,
     );
 
-    final cnx = Connection._(raw, config);
+    final cnx = ConnectionImpl(raw, config);
 
     if (config.password != null) {
-      await cnx._auth(config.password);
+      await cnx.auth(config.password);
     }
 
     return cnx;
   }
 
-  void _onReply(Reply reply) {
-    final task = _tasks.removeFirst();
+  Future<String> echo(String message);
 
-    switch (reply.kind) {
-      case ReplyKind.error:
-        task.completeError(Exception(reply.value));
-        break;
+  Future<String> ping([String message]);
 
-      case ReplyKind.array:
-        task.complete(unwrapArrayReply(reply as ArrayReply));
-        break;
-
-      default:
-        task.complete(reply.value);
-        break;
-    }
-  }
-
-  Future<void> _quit() => exec([r'QUIT']);
-
-  Future<void> _auth(String password) {
-    ArgumentError.checkNotNull(password);
-
-    return exec([r'AUTH', password]);
-  }
-
-  @override
-  Future<T> exec<T>(List<String> args) {
-    final task = Completer<T>();
-
-    _cnx.send(convertToRespLine(args));
-    _tasks.add(task);
-
-    return task.future;
-  }
-
-  Future<String> echo(String message) => exec([r'ECHO', message]);
-
-  Future<String> ping([String message]) =>
-      exec([r'PING', if (message != null) message]);
-
-  Future<void> select(int db) => exec([r'SELECT', db.toString()]);
-
-  /// Returns this connection back to the connection pool of the owner client.
-  Future<void> close({bool force = false}) async {
-    await _quit();
-    await _cnx.close(force);
-  }
+  Future<void> select(int db);
 }
