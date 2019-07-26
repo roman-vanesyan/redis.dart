@@ -86,7 +86,7 @@ class PoolStats implements log.Loggable {
 ///
 /// ```dart
 /// void main() async {
-///   final pool = Pool.connect(InternetAddress.loopbackIPv4);
+///   final pool = Pool(InternetAddress.loopbackIPv4);
 ///
 ///   await pool.strings.set('key', 'value');
 ///   final value = await client.strings.get('key');
@@ -116,7 +116,7 @@ class PoolStats implements log.Loggable {
 /// If only a single connection is needed for the whole application lifetime
 /// use [Connection] instead.
 class Pool extends Runner with ContextProvider {
-  Pool._(this.host, this.port, this.config)
+  Pool(this.host, {this.port = 6379, this.config = const PoolConfig()})
       : _allConns = {},
         _idlingConns = Queue(),
         _pendingConns = Queue(),
@@ -125,7 +125,14 @@ class Pool extends Runner with ContextProvider {
         _nextCnxId = 0,
         _totalConns = 0,
         _totalPendingConns = 0,
-        _totalIdlingConns = 0;
+        _totalIdlingConns = 0 {
+    if (logger.isEnabledFor(log.Level.debug)) {
+      logger.bind({
+        log.Str('host', host.toString()),
+        log.Int('port', port),
+      }).debug('make a new connection pool');
+    }
+  }
 
   final Completer<void> _completer;
   final Map<int, PooledConnection> _allConns;
@@ -135,8 +142,6 @@ class Pool extends Runner with ContextProvider {
   int _nextCnxId;
   bool _isClosed;
 
-  // conns counters
-  // --------------
   int _totalConns;
   int _totalIdlingConns;
   int _totalPendingConns;
@@ -162,30 +167,6 @@ class Pool extends Runner with ContextProvider {
         _totalConns - _totalIdlingConns,
         config.maxConns,
       );
-
-  /// Creates a new connection pool to the [host] and [port] and returns
-  static Future<Pool> connect(dynamic /* InternetAddress | String */ host,
-      {int port = 6379, PoolConfig config = const PoolConfig()}) async {
-    ArgumentError.checkNotNull(host);
-
-    if (host is String) {
-      // TODO: handle string URI
-    } else if (host is! InternetAddress) {
-      throw ArgumentError.value(
-          host, 'host', 'expected URI string or `InternedAddress`!');
-    }
-
-    // TODO: handle min idle conns?
-
-    if (logger.isEnabledFor(log.Level.debug)) {
-      logger.bind({
-        log.Str('host', host.toString()),
-        log.Int('port', port),
-      }).debug('make a new connection pool');
-    }
-
-    return Pool._(host, port, config);
-  }
 
   int _getNextId() => _nextCnxId++;
 

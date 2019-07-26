@@ -3,7 +3,7 @@ import 'dart:io' show InternetAddress;
 import 'package:redis/redis.dart' show Pool;
 
 Future<void> main() async {
-  final pool = await Pool.connect(InternetAddress.loopbackIPv4);
+  final pool = Pool(InternetAddress.loopbackIPv4);
 
   final tx = await pool.multi();
   final ops = [

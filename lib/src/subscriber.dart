@@ -107,15 +107,6 @@ class Subscriber {
     int port = 6379,
     SubscriberConfig config = const SubscriberConfig(),
   }) async {
-    if (host is String) {
-      final uri = Uri.parse(host);
-
-      // TODO: decide on the String address API.
-    } else if (host is! InternetAddress) {
-      throw ArgumentError.value(
-          host, 'host', 'expected URI string or `InternedAddress`!');
-    }
-
     final cnx = await RawConnection.connect(
       host,
       port,

@@ -4,7 +4,7 @@ import 'package:redis/redis.dart' show Pool;
 import 'package:redis/src/subscriber.dart';
 
 Future<void> main() async {
-  final client = await Pool.connect(InternetAddress.loopbackIPv4);
+  final client = await Pool(InternetAddress.loopbackIPv4);
   final subscriber = await Subscriber.connect(InternetAddress.loopbackIPv4);
 
   subscriber.messages.listen((e) {
