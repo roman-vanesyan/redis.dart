@@ -1,9 +1,12 @@
 import 'dart:async' show StreamController, StreamTransformer;
 import 'dart:convert' show utf8;
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 
+import 'package:redis/resp_v2.dart';
 import 'package:test/test.dart';
-import 'package:redis/resp.dart';
+
+Uint8List encodeUtf8String(String value) => utf8.encoder.convert(value);
 
 dynamic _unwrapArray(Reply reply) {
   switch (reply.kind) {
@@ -119,7 +122,7 @@ void main() {
     });
 
     group('#startChunkedConversion', () {
-      StreamController<List<int>> socket;
+      StreamController<Uint8List> socket;
       Stream<dynamic> stream;
 
       setUp(() {
@@ -130,25 +133,25 @@ void main() {
       });
 
       test('Integer', () {
-        final data1 = utf8.encode(':-123123\r\n');
-        final data2 = utf8.encode(':1000000000\r\n');
+        final data1 = encodeUtf8String(':-123123\r\n');
+        final data2 = encodeUtf8String(':1000000000\r\n');
 
         socket
           ..add(data1)
           ..add(data2)
 
           // -32
-          ..add(utf8.encode(':'))
-          ..add(utf8.encode('-'))
-          ..add(utf8.encode('32'))
-          ..add(utf8.encode('\r\n'));
+          ..add(encodeUtf8String(':'))
+          ..add(encodeUtf8String('-'))
+          ..add(encodeUtf8String('32'))
+          ..add(encodeUtf8String('\r\n'));
 
         expectLater(stream, emitsInOrder(<int>[-123123, 1000000000, -32]));
       });
 
       test('Error', () {
-        final data1 = utf8.encode('-ERR error!\r\n');
-        final data2 = utf8.encode('---error\r\n');
+        final data1 = encodeUtf8String('-ERR error!\r\n');
+        final data2 = encodeUtf8String('---error\r\n');
 
         socket
           // ERR error!
@@ -158,20 +161,20 @@ void main() {
           ..add(data2)
 
           // ER-R
-          ..add(utf8.encode('-'))
-          ..add(utf8.encode('E'))
-          ..add(utf8.encode('R'))
-          ..add(utf8.encode('-'))
-          ..add(utf8.encode('R'))
-          ..add(utf8.encode('\r'))
-          ..add(utf8.encode('\n'));
+          ..add(encodeUtf8String('-'))
+          ..add(encodeUtf8String('E'))
+          ..add(encodeUtf8String('R'))
+          ..add(encodeUtf8String('-'))
+          ..add(encodeUtf8String('R'))
+          ..add(encodeUtf8String('\r'))
+          ..add(encodeUtf8String('\n'));
 
         expectLater(
             stream, emitsInOrder(<String>['ERR error!', '--error', 'ER-R']));
       });
 
       test('Simple strings', () {
-        final data1 = utf8.encode('+OK\r\n');
+        final data1 = encodeUtf8String('+OK\r\n');
 
         socket
           ..add(data1)
@@ -182,13 +185,13 @@ void main() {
           ..add(data1)
 
           // ++
-          ..add(utf8.encode('+++\r\n'))
+          ..add(encodeUtf8String('+++\r\n'))
 
           // ok
-          ..add(utf8.encode('+'))
-          ..add(utf8.encode('o'))
-          ..add(utf8.encode('k'))
-          ..add(utf8.encode('\r\n'));
+          ..add(encodeUtf8String('+'))
+          ..add(encodeUtf8String('o'))
+          ..add(encodeUtf8String('k'))
+          ..add(encodeUtf8String('\r\n'));
 
         expectLater(
             stream,
@@ -197,8 +200,8 @@ void main() {
       });
 
       test('Bulk strings', () {
-        final data1 = utf8.encode('\$13\r\ncomplete data\r\n');
-        final data2 = utf8.encode('\$12\r\nchunked data\r\n');
+        final data1 = encodeUtf8String('\$13\r\ncomplete data\r\n');
+        final data2 = encodeUtf8String('\$12\r\nchunked data\r\n');
 
         socket
           // complete data
@@ -210,16 +213,16 @@ void main() {
           ..add(data2.sublist(9))
 
           // bulk$string
-          ..add(utf8.encode('\$11\r'))
-          ..add(utf8.encode('\nbulk\$'))
-          ..add(utf8.encode('string\r\n'));
+          ..add(encodeUtf8String('\$11\r'))
+          ..add(encodeUtf8String('\nbulk\$'))
+          ..add(encodeUtf8String('string\r\n'));
 
         expectLater(
             stream, emitsInOrder(<String>['complete data', 'chunked data']));
       });
 
       test('Null bulk strings', () {
-        final data = utf8.encode('\$-1\r\n');
+        final data = encodeUtf8String('\$-1\r\n');
 
         socket.add(data);
 
@@ -228,16 +231,16 @@ void main() {
 
       test('Arrays', () {
         socket
-          ..add(utf8.encode('*'))
-          ..add(utf8.encode('5'))
-          ..add(utf8.encode('\r\n'))
-          ..add(utf8.encode(':5\r\n'))
-          ..add(utf8.encode('\$11\r\nBulk String\r\n'))
-          ..add(utf8.encode('+Simple String\r\n'))
-          ..add(utf8.encode('\$13\r\nBulk String 2\r\n'))
-          ..add(utf8.encode(':-100'))
-          ..add(utf8.encode('\r'))
-          ..add(utf8.encode('\n'));
+          ..add(encodeUtf8String('*'))
+          ..add(encodeUtf8String('5'))
+          ..add(encodeUtf8String('\r\n'))
+          ..add(encodeUtf8String(':5\r\n'))
+          ..add(encodeUtf8String('\$11\r\nBulk String\r\n'))
+          ..add(encodeUtf8String('+Simple String\r\n'))
+          ..add(encodeUtf8String('\$13\r\nBulk String 2\r\n'))
+          ..add(encodeUtf8String(':-100'))
+          ..add(encodeUtf8String('\r'))
+          ..add(encodeUtf8String('\n'));
 
         expectLater(
             stream,
@@ -252,15 +255,15 @@ void main() {
 
       test('Nested arrays', () {
         socket
-          ..add(utf8.encode('*3\r\n*2\r\n'))
-          ..add(utf8.encode('\$6\r\nfoobar\r\n'))
-          ..add(utf8.encode('*1\r\n'))
-          ..add(utf8.encode(':-10\r\n'))
-          ..add(utf8.encode('+simple_string\r\n'))
-          ..add(utf8.encode('\$6\r\nFooBar\r\n'))
+          ..add(encodeUtf8String('*3\r\n*2\r\n'))
+          ..add(encodeUtf8String('\$6\r\nfoobar\r\n'))
+          ..add(encodeUtf8String('*1\r\n'))
+          ..add(encodeUtf8String(':-10\r\n'))
+          ..add(encodeUtf8String('+simple_string\r\n'))
+          ..add(encodeUtf8String('\$6\r\nFooBar\r\n'))
 
           // [null]
-          ..add(utf8.encode('*1\r\n*-1\r\n'));
+          ..add(encodeUtf8String('*1\r\n*-1\r\n'));
 
         expectLater(
             stream,
@@ -278,7 +281,7 @@ void main() {
       });
 
       test('Null array', () {
-        final data = utf8.encode('*-1\r\n');
+        final data = encodeUtf8String('*-1\r\n');
 
         socket.add(data);
 

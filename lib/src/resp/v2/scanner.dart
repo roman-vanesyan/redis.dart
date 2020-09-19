@@ -1,10 +1,10 @@
 import 'dart:io' show BytesBuilder;
 import 'dart:math' show min;
 
-import 'package:redis/src/resp/byte_buffer.dart';
-import 'package:redis/src/resp/protocol_exception.dart';
-import 'package:redis/src/resp/token_type.dart';
-import 'package:redis/src/resp/reply.dart';
+import '../byte_reader.dart';
+import 'protocol_exception.dart';
+import 'reply.dart';
+import 'token_type.dart';
 
 const int _cr = 0x0d;
 const int _lf = 0x0a;
@@ -32,7 +32,7 @@ class Scanner {
   int _crlf;
   int _length;
 
-  BytesBuilder _accumulator;
+  final BytesBuilder _accumulator;
 
   bool get idling =>
       _state &
@@ -49,7 +49,7 @@ class Scanner {
 
   int _getInt() => int.tryParse(_getString());
 
-  bool _scanLine(ByteBuffer buffer) {
+  bool _scanLine(ByteReader buffer) {
     while (buffer.available() > 0) {
       final byte = buffer.takeOne();
 
@@ -76,7 +76,7 @@ class Scanner {
     return false;
   }
 
-  bool _scanLength(ByteBuffer buffer) {
+  bool _scanLength(ByteReader buffer) {
     final done = _scanLine(buffer);
 
     if (done) {
@@ -84,7 +84,6 @@ class Scanner {
 
       _length = len;
 
-      // Reset state
       _state ^= _State.scanLength;
       _accumulator.clear();
     }
@@ -92,13 +91,11 @@ class Scanner {
     return done;
   }
 
-  bool _scanInteger(ByteBuffer buffer) {
+  bool _scanInteger(ByteReader buffer) {
     final done = _scanLine(buffer);
 
     if (done) {
       _reply = IntegerReply(_getInt());
-
-      // Reset states
       _state ^= _State.scanInteger;
       _accumulator.clear();
     }
@@ -106,13 +103,11 @@ class Scanner {
     return done;
   }
 
-  bool _scanSimpleString(ByteBuffer buffer) {
+  bool _scanSimpleString(ByteReader buffer) {
     final done = _scanLine(buffer);
 
     if (done) {
       _reply = SimpleStringReply(_getString());
-
-      // Reset states
       _state ^= _State.scanSimpleString;
       _accumulator.clear();
     }
@@ -120,13 +115,11 @@ class Scanner {
     return done;
   }
 
-  bool _scanError(ByteBuffer buffer) {
+  bool _scanError(ByteReader buffer) {
     final done = _scanLine(buffer);
 
     if (done) {
       _reply = ErrorReply(_getString());
-
-      // Reset states
       _state ^= _State.scanError;
       _accumulator.clear();
     }
@@ -134,7 +127,7 @@ class Scanner {
     return done;
   }
 
-  bool _scanBulkString(ByteBuffer buffer) {
+  bool _scanBulkString(ByteReader buffer) {
     if (_length == null) {
       if (!_scanLength(buffer)) {
         return false;
@@ -143,8 +136,6 @@ class Scanner {
 
     if (_length == -1) {
       _reply = NilReply();
-
-      // Reset states
       _state ^= _State.scanBulkString;
       _length = null;
       _accumulator.clear();
@@ -166,7 +157,6 @@ class Scanner {
 
           _reply = BulkStringReply(_getString());
 
-          // Reset state
           _state ^= _State.scanBulkString;
           _crlf = 0;
           _length = null;
@@ -185,7 +175,7 @@ class Scanner {
     return false;
   }
 
-  bool _scanArray(ByteBuffer buffer) {
+  bool _scanArray(ByteReader buffer) {
     if (_length == null) {
       if (!_scanLength(buffer)) {
         return false;
@@ -197,7 +187,6 @@ class Scanner {
     if (_length == -1) {
       _reply = NilReply();
 
-      // Reset state
       _state ^= _State.scanArray;
       _length = null;
       _replies = null;
@@ -226,7 +215,6 @@ class Scanner {
 
     _reply = ArrayReply(_replies);
 
-    // Reset state
     _state ^= _State.scanArray;
     _replies = null;
     _arrayScanner = null;
@@ -235,17 +223,17 @@ class Scanner {
     return true;
   }
 
-  bool scan(ByteBuffer buffer) {
+  bool scan(ByteReader reader) {
     if (_state & _State.scanSimpleString > 0) {
-      return _scanSimpleString(buffer);
+      return _scanSimpleString(reader);
     } else if (_state & _State.scanError > 0) {
-      return _scanError(buffer);
+      return _scanError(reader);
     } else if (_state & _State.scanInteger > 0) {
-      return _scanInteger(buffer);
+      return _scanInteger(reader);
     } else if (_state & _State.scanBulkString > 0) {
-      return _scanBulkString(buffer);
+      return _scanBulkString(reader);
     } else if (_state & _State.scanArray > 0) {
-      return _scanArray(buffer);
+      return _scanArray(reader);
     }
 
     throw StateError('Uninitialized parser state, use `Scanner#feed`'

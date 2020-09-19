@@ -1,19 +1,26 @@
 import 'dart:convert' show Converter, utf8;
 import 'dart:io' show BytesBuilder;
+import 'dart:typed_data' show Uint8List;
 
-import 'package:redis/src/resp/reply.dart';
-import 'package:redis/src/resp/token_type.dart';
+import 'reply.dart';
+import 'token_type.dart';
 
 const int _cr = 0x0d;
 const int _lf = 0x0a;
-const List<int> _crlf = [_cr, _lf];
+final Uint8List _crlf = Uint8List(2)
+  ..[0] = _cr
+  ..[1] = _lf;
 
-class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
+class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
   const RespEncoder() : super();
 
-  List<int> _encodeArray(ArrayReply reply) {
+  Uint8List _encodeArray(ArrayReply reply) {
     if (reply.value.isEmpty) {
-      return [0x2a /* * */, 0x30 /* 0 */, _cr, _lf];
+      return Uint8List(4)
+        ..[0] = 0x2a /* * */
+        ..[1] = 0x30 /* 0 */
+        ..[2] = _cr
+        ..[3] = _lf;
     }
 
     final len = reply.value.length;
@@ -30,7 +37,7 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
     return buffer.takeBytes();
   }
 
-  List<int> _encodeInteger(IntegerReply reply) {
+  Uint8List _encodeInteger(IntegerReply reply) {
     final data = utf8.encode(reply.value.toString());
 
     return (BytesBuilder(copy: false)
@@ -40,16 +47,20 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
         .takeBytes();
   }
 
-  List<int> _encodeSimpleString(SimpleStringReply reply) =>
+  Uint8List _encodeSimpleString(SimpleStringReply reply) =>
       (BytesBuilder(copy: false)
             ..addByte(TokenType.simpleString)
             ..add(utf8.encode(reply.value))
             ..add(_crlf))
           .takeBytes();
 
-  List<int> _encodeBulkString(BulkStringReply reply) {
+  Uint8List _encodeBulkString(BulkStringReply reply) {
     if (reply.value.isEmpty) {
-      return [TokenType.bulkString, 0x30 /* 0 */, _cr, _lf];
+      return Uint8List(4)
+        ..[0] = TokenType.bulkString
+        ..[1] = 0x30 /* 0 */
+        ..[2] = _cr
+        ..[3] = _lf;
     }
 
     final len = reply.value.length;
@@ -63,14 +74,14 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
     return buffer.takeBytes();
   }
 
-  List<int> _encodeError(ErrorReply reply) => (BytesBuilder(copy: false)
+  Uint8List _encodeError(ErrorReply reply) => (BytesBuilder(copy: false)
         ..addByte(TokenType.error)
         ..add(utf8.encode(reply.value))
         ..add(_crlf))
       .takeBytes();
 
   @override
-  List<int> convert(Reply<dynamic> input) {
+  Uint8List convert(Reply<dynamic> input) {
     final kind = input.kind;
 
     switch (kind) {
@@ -78,7 +89,12 @@ class RespEncoder extends Converter<Reply<dynamic>, List<int>> {
         return _encodeArray(input as ArrayReply);
 
       case ReplyKind.nil:
-        return [TokenType.bulkString, 0x2d /* - */, 0x31 /* 1 */, _cr, _lf];
+        return Uint8List(5)
+          ..[0] = TokenType.bulkString
+          ..[1] = 0x2d /* - */
+          ..[2] = 0x31 /* 1 */
+          ..[3] = _cr
+          ..[4] = _lf;
 
       case ReplyKind.simpleString:
         return _encodeSimpleString(input as SimpleStringReply);

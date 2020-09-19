@@ -1,10 +1,10 @@
 library redis.resp;
 
-export 'src/resp/codec.dart' show RespCodec;
-export 'src/resp/decoder.dart' show RespDecoder;
-export 'src/resp/encoder.dart' show RespEncoder;
+export 'src/resp/v2/codec.dart' show RespCodec;
+export 'src/resp/v2/decoder.dart' show RespDecoder;
+export 'src/resp/v2/encoder.dart' show RespEncoder;
 
-export 'src/resp/reply.dart'
+export 'src/resp/v2/reply.dart'
     show
         Reply,
         ReplyKind,

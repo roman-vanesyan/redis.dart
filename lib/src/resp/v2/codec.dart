@@ -1,8 +1,8 @@
 import 'dart:convert' show Codec;
 
-import 'package:redis/src/resp/decoder.dart';
-import 'package:redis/src/resp/encoder.dart';
-import 'package:redis/src/resp/reply.dart';
+import 'package:redis/src/resp/v2/decoder.dart';
+import 'package:redis/src/resp/v2/encoder.dart';
+import 'package:redis/src/resp/v2/reply.dart';
 
 const RespCodec resp = RespCodec();
 
