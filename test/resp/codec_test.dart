@@ -3,7 +3,7 @@ import 'dart:convert' show utf8;
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
-import 'package:redis/resp_v2.dart';
+import 'package:redis/resp2.dart';
 import 'package:test/test.dart';
 
 Uint8List encodeUtf8String(String value) => utf8.encoder.convert(value);
