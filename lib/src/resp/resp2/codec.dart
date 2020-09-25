@@ -3,9 +3,9 @@ import 'dart:io' show BytesBuilder;
 import 'dart:typed_data' show Uint8List;
 
 import '../byte_reader.dart';
+import '../scanner.dart';
+import '../signal_char.dart' as signal_char;
 import 'reply.dart';
-import 'scanner.dart';
-import 'signal_char.dart' as signal_char;
 
 const int _cr = 0x0d;
 const int _lf = 0x0a;
@@ -33,7 +33,7 @@ class RespDecoder extends Converter<Uint8List, Reply> {
   @override
   Reply convert(Uint8List input) {
     final reader = ByteReader(input);
-    final scanner = Scanner();
+    final scanner = Scanner(protocolKind: ProtocolKind.resp);
 
     if (scanner.scan(reader)) {
       return scanner.reply;
@@ -48,7 +48,8 @@ class RespDecoder extends Converter<Uint8List, Reply> {
 }
 
 class _RespDecodeSink extends ChunkedConversionSink<Uint8List> {
-  _RespDecodeSink(this._sink) : _scanner = Scanner();
+  _RespDecodeSink(this._sink)
+      : _scanner = Scanner(protocolKind: ProtocolKind.resp);
 
   final Scanner _scanner;
   final Sink<Reply> _sink;
@@ -73,7 +74,7 @@ class _RespDecodeSink extends ChunkedConversionSink<Uint8List> {
 class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
   const RespEncoder() : super();
 
-  Uint8List _encodeArray(ArrayReply reply) {
+  Uint8List _encodeArray(Reply<List<Reply>> reply) {
     if (reply.value.isEmpty) {
       return Uint8List(4)
         ..[0] = 0x2a /* * */
@@ -96,7 +97,7 @@ class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
     return buffer.takeBytes();
   }
 
-  Uint8List _encodeInteger(IntegerReply reply) {
+  Uint8List _encodeInteger(Reply<int> reply) {
     final data = utf8.encode(reply.value.toString());
 
     return (BytesBuilder(copy: false)
@@ -106,14 +107,14 @@ class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
         .takeBytes();
   }
 
-  Uint8List _encodeSimpleString(SimpleStringReply reply) =>
+  Uint8List _encodeSimpleString(Reply<String> reply) =>
       (BytesBuilder(copy: false)
             ..addByte(signal_char.simpleString)
             ..add(utf8.encode(reply.value))
             ..add(_crlf))
           .takeBytes();
 
-  Uint8List _encodeBulkString(BulkStringReply reply) {
+  Uint8List _encodeBulkString(Reply<String> reply) {
     if (reply.value.isEmpty) {
       return Uint8List(4)
         ..[0] = signal_char.bulkString
@@ -133,9 +134,15 @@ class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
     return buffer.takeBytes();
   }
 
-  Uint8List _encodeError(ErrorReply reply) => (BytesBuilder(copy: false)
+  Uint8List _encodeError(Reply<String> reply) => (BytesBuilder(copy: false)
         ..addByte(signal_char.error)
         ..add(utf8.encode(reply.value))
+        ..add(_crlf))
+      .takeBytes();
+
+  Uint8List _encodeDouble(Reply<double> reply) => (BytesBuilder(copy: false)
+        ..addByte(signal_char.double)
+        ..add(utf8.encode('${reply.value}'))
         ..add(_crlf))
       .takeBytes();
 
@@ -145,7 +152,7 @@ class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
 
     switch (kind) {
       case ReplyKind.array:
-        return _encodeArray(input as ArrayReply);
+        return _encodeArray(input as Reply<List<Reply>>);
 
       case ReplyKind.nil:
         return Uint8List(5)
@@ -156,16 +163,23 @@ class RespEncoder extends Converter<Reply<dynamic>, Uint8List> {
           ..[4] = _lf;
 
       case ReplyKind.simpleString:
-        return _encodeSimpleString(input as SimpleStringReply);
+        return _encodeSimpleString(input as Reply<String>);
 
       case ReplyKind.integer:
-        return _encodeInteger(input as IntegerReply);
+        return _encodeInteger(input as Reply<int>);
 
       case ReplyKind.bulkString:
-        return _encodeBulkString(input as BulkStringReply);
+        return _encodeBulkString(input as Reply<String>);
 
       case ReplyKind.error:
-        return _encodeError(input as ErrorReply);
+        return _encodeError(input as Reply<String>);
+
+      case ReplyKind.double:
+        return _encodeDouble(input as Reply<double>);
+
+      case ReplyKind.boolean:
+//        return _encodeBoolean(input as Reply<bool>);
+        break;
     }
 
     throw Exception('Unknown reply kind!');

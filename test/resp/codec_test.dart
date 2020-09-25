@@ -13,7 +13,7 @@ dynamic _unwrapArray(Reply reply) {
     case ReplyKind.array:
       final list = <dynamic>[];
 
-      for (final r in (reply as ArrayReply).value) {
+      for (final r in (reply as Reply<List<Reply>>).value) {
         list.add(_unwrapArray(r));
       }
 
@@ -29,7 +29,7 @@ final _unwrapTransformer =
   switch (reply.kind) {
     case ReplyKind.array:
       final list = <dynamic>[];
-      for (final r in (reply as ArrayReply).value) {
+      for (final r in (reply as Reply<List<Reply>>).value) {
         list.add(_unwrapArray(r));
       }
 
@@ -51,8 +51,10 @@ void main() {
     });
 
     test('Correctly encodes simple string', () {
-      final result1 = encoder.convert(SimpleStringReply('PING'));
-      final result2 = encoder.convert(SimpleStringReply('Simple String'));
+      final result1 = encoder.convert(
+          const Reply<String>(kind: ReplyKind.simpleString, value: 'PING'));
+      final result2 = encoder.convert(const Reply<String>(
+          kind: ReplyKind.simpleString, value: 'Simple String'));
 
       expect(result1, equals([43, 80, 73, 78, 71, 13, 10]));
 
@@ -79,10 +81,14 @@ void main() {
     });
 
     test('Correctly encodes integers', () {
-      final result1 = encoder.convert(IntegerReply(-4294967296));
-      final result2 = encoder.convert(IntegerReply(math.pow(2, 63) - 1 as int));
-      final result3 = encoder.convert(IntegerReply(0));
-      final result4 = encoder.convert(IntegerReply(-1));
+      final result1 = encoder.convert(
+          const Reply<int>(kind: ReplyKind.integer, value: -4294967296));
+      final result2 = encoder.convert(Reply<int>(
+          kind: ReplyKind.integer, value: (math.pow(2, 63) - 1).toInt()));
+      final result3 =
+          encoder.convert(const Reply<int>(kind: ReplyKind.integer, value: 0));
+      final result4 =
+          encoder.convert(const Reply<int>(kind: ReplyKind.integer, value: -1));
 
       expect(result1, [58, 45, 52, 50, 57, 52, 57, 54, 55, 50, 57, 54, 13, 10]);
       expect(result2, [
